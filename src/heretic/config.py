@@ -31,6 +31,14 @@ class DatasetSpecification(BaseModel):
         description="Hugging Face dataset ID, or path to dataset on disk."
     )
 
+    # COMPAT: added data_files support for local text/jsonl/csv builders.
+    # When set, dataset must be a builder name like 'text', 'json', 'csv'
+    # and data_files points to a local file path (str) or list of paths.
+    data_files: str | list[str] | None = Field(
+        default=None,
+        description="For local builders ('text', 'json', 'csv'): local file path(s) to load.",
+    )
+
     split: str = Field(description="Portion of the dataset to use.")
 
     column: str = Field(description="Column in the dataset that contains the prompts.")

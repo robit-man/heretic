@@ -193,7 +193,19 @@ def load_prompts(
     path = specification.dataset
     split_str = specification.split
 
-    if os.path.isdir(path):
+    # COMPAT PATCH: honor `data_files` field on DatasetSpecification so users
+    # can point good_prompts/bad_prompts at local .txt / .jsonl / .csv files
+    # without having to publish to HF Hub first. Fixes the "text" loader path.
+    data_files = getattr(specification, "data_files", None)
+    if data_files:
+        # Local text/jsonl/csv builder. `path` is the builder name ("text", "json", "csv").
+        dataset = load_dataset(
+            path,
+            data_files=data_files,
+            split=split_str,
+            verification_mode=VerificationMode.NO_CHECKS,
+        )
+    elif os.path.isdir(path):
         if Path(path, DATASET_STATE_JSON_FILENAME).exists():
             # Dataset saved with datasets.save_to_disk; needs special handling.
             # Path should be the subdirectory for a particular split.
