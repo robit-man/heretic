@@ -560,12 +560,18 @@ class Model:
 
         # This cast is valid because list[str] is the return type
         # for batched operation with tokenize=False.
+        # COMPAT: pass enable_thinking=False for Qwen3-family models whose
+        # chat templates auto-inject <think> tokens. Harmless for other models
+        # (extra kwargs are ignored unless the jinja template references them).
+        # Without this, Qwen3.5 enters think-mode and exhausts max_new_tokens
+        # inside the <think> block -> garbage "!!!!!" outputs -> NaN residuals.
         chat_prompts = cast(
             list[str],
             self.tokenizer.apply_chat_template(
                 chats,
                 add_generation_prompt=True,
                 tokenize=False,
+                enable_thinking=False,
             ),
         )
 
@@ -715,12 +721,14 @@ class Model:
     def stream_chat_response(self, chat: list[dict[str, str]]) -> str:
         # This cast is valid because str is the return type
         # for single-chat operation with tokenize=False.
+        # COMPAT: see note above re: enable_thinking=False for Qwen3-family.
         chat_prompt = cast(
             str,
             self.tokenizer.apply_chat_template(
                 chat,
                 add_generation_prompt=True,
                 tokenize=False,
+                enable_thinking=False,
             ),
         )
 

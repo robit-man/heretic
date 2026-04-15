@@ -62,6 +62,32 @@ load_dataset(path, data_files=data_files, split=split_str,
 where `path` is expected to be a builder name (`"text"`, `"json"`, `"csv"`) and
 `data_files` is the local file path.
 
+### 4. `src/heretic/model.py` — `enable_thinking=False` for Qwen3-family
+
+Qwen3 / Qwen3.5 chat templates auto-inject a `<think>` block at the start of
+the assistant turn when invoked with `apply_chat_template(...)`. During
+HERETIC's generation (batch-size benchmarking, prefix detection, residual
+collection, refusal counting) this causes the model to enter reasoning mode
+and exhaust `max_new_tokens` inside the `<think>` block — the visible
+response never even begins.
+
+On Qwen3.5-9B with `max_response_length=100`, this produced output of 150+
+consecutive `!` characters (the classic Qwen degeneration signal when forced
+to emit tokens past its planned think budget). The garbage outputs in turn
+corrupt residual hidden states with NaNs, and HERETIC's
+`print_residual_geometry()` crashes in `sklearn.silhouette_score` with
+`ValueError: Input X contains NaN`.
+
+Fix: pass `enable_thinking=False` to both `apply_chat_template` call sites
+in `model.py` (`get_responses_batched` and `stream_chat_response`). Qwen3's
+jinja template then emits `<think>\n\n</think>\n\n` (a pre-closed empty
+think block) and the model answers directly.
+
+Harmless for non-Qwen3 models: `apply_chat_template` passes unrecognized
+kwargs through to the jinja environment as template variables; if the
+template doesn't reference `enable_thinking`, the kwarg is simply ignored.
+Verified against transformers 4.40+ behavior.
+
 ## Usage
 
 Config snippet using local files:
